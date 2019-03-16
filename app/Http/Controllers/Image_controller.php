@@ -19,30 +19,48 @@ class Image_controller extends Controller
 
     public function image(request $request)
     {
-
-        # instantiates a client
+        putenv('GOOGLE_APPLICATION_CREDENTIALS=/Applications/MAMP/htdocs/codinglikejedi/codinglikejedi-c64ef958d532.json');
+        $fileName = 'IMG_2219.JPG';
         $imageAnnotator = new ImageAnnotatorClient();
-
-        # the name of the image file to annotate
-        $fileName = 'https://maipuhoy.com/wp-content/uploads/2019/01/FB_IMG_1547066578130-678x381.jpg';
-
-        # prepare the image to be annotated
         $image = file_get_contents($fileName);
-
-        # performs label detection on the image file
-        $response = $imageAnnotator->labelDetection($image);
-        $labels = $response->getLabelAnnotations();
-
-        $result = '';
-        if ($labels) {
-            echo ("Labels:" . PHP_EOL);
-            foreach ($labels as $label) {
-                $result += ($label->getDescription() . PHP_EOL);
+        $response = $imageAnnotator->documentTextDetection($image);
+        $annotation = $response->getFullTextAnnotation();
+        if ($annotation) {
+            foreach ($annotation->getPages() as $page) {
+                foreach ($page->getBlocks() as $block) {
+                    $block_text = '';
+                    foreach ($block->getParagraphs() as $paragraph) {
+                        foreach ($paragraph->getWords() as $word) {
+                            foreach ($word->getSymbols() as $symbol) {
+                                $block_text .= $symbol->getText();
+                            }
+                            $block_text .= ' ';
+                        }
+                        $block_text .= "\n";
+                    }
+                    printf('Block content: %s', $block_text);
+                    printf('Block confidence: %f' . PHP_EOL,
+                    $block->getConfidence());
+                    $vertices = $block->getBoundingBox()->getVertices();
+                    $bounds = [];
+                    foreach ($vertices as $vertex) {
+                        $bounds[] = sprintf('(%d,%d)', $vertex->getX(),
+                            $vertex->getY());
+                    }
+                    print('Bounds: ' . join(', ',$bounds) . PHP_EOL);
+                    print(PHP_EOL);
+                }
             }
         } else {
-            $result = ('No label found' . PHP_EOL);
+            print('No text found' . PHP_EOL);
         }
+    
+        $imageAnnotator->close();
+    
+    
+    
+    
 
-        return response()->json($result);
+        //return response()->json($objects);
     }
 }
